@@ -19,6 +19,9 @@
     "url": "https://github.com/Tr-Do/ecommerce/issues"
   },
   "homepage": "https://github.com/Tr-Do/ecommerce#readme",
+  "overrides": {
+    "bn.js": "5.2.3"
+  },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.971.0",
     "@aws-sdk/s3-request-presigner": "^3.971.0",
