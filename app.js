@@ -103,15 +103,23 @@ app.post(
     checkout.webhook
 );
 
+// do the same thing for coinbase
+app.post('/checkout/webhook',
+    express.raw({ type: 'application/json' }),
+    checkout.coinbaseWebhook
+);
+
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 const sanitizer = sanitizeV5({ replaceWith: '_' });
 
 app.use((req, res, next) => {
-    if (req.originalUrl.startsWith('/checkout/webhook') || req.originalUrl.startsWith('/downloads')) {
-        return next()
-    };
+    if (req.originalUrl.startsWith('/checkout/webhook') ||
+        req.originalUrl.startsWith('/checkout/coinbase/webhook') ||
+        req.originalUrl.startsWith('/downloads')
+    ) return next()
+
     if (
         req.originalUrl.startsWith('/checkout/webhook') ||
         req.originalUrl.startsWith('/downloads') ||

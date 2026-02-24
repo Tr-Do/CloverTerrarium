@@ -130,89 +130,6 @@ module.exports.createPaypalOrder = async (req, res) => {
     } catch (e) {
         return res.status(e.status || 500).json({ error: e.message || 'Server error' });
     }
-
-}
-
-module.exports.capturePaypalOrder = async (req, res) => {
-    try {
-        const { orderID } = req.body;
-        if (!orderID) return res.status(400).json({ error: 'Missing order ID' });
-
-        const accessToken = await getAccessToken();
-
-        const capRes = await fetch(
-            `${process.env.PAYPAL_BASE_URL}/v2/checkout/orders/${orderID}/capture`,
-            {
-                method: 'POST',
-                headers: {
-                    Authorization: `Bearer ${accessToken}`,
-                    'Content-Type': 'application/json'
-                }
-            }
-        );
-        const cap = await capRes.json();
-        if (!capRes.ok) return res.status(502).json(cap);
-
-        const pu = cap.purchase_units?.[0];
-        const dbOrderId = pu?.custom_id;
-        const captureId = pu?.payments?.captures?.[0]?.id;
-        const payerEmail = cap.payer?.email_address || null;
-        const chargedCents = Math.round(Number(pu.amount.value) * 100);
-
-        if (!dbOrderId) return res.status(400).json({ error: 'Missing order ID', cap });
-
-        if (!captureId || capture?.status !== 'COMPLETED')
-            return res.status(400).json({ error: 'Capture not completed', cap });
-
-
-        const dbOrder = await Order.findOne(
-            {
-                _id: dbOrderId,
-                'payment.paypalOrderId': orderID
-            })
-        if (!dbOrder) return res.status(400).json({ error: 'Order not found' });
-
-        if (dbOrder.payment.status === 'paid') return res.json({ ok: true });
-
-        const currencyCode = pu?.amount?.currency_code;
-        if (!pu?.amount.value || !currencyCode)
-            return res.status(400).json({ error: 'Missing purchase amount', cap });
-        if (currencyCode.toLowerCase() !== dbOrder.payment.currency)
-            return res.status(400).json({ error: 'Currency mismatch', currencyCode, expected: dbOrder.payment.currency });
-        if (!captureId) return res.status(400).json({ error: 'Missing captureId', cap });
-
-        if (chargedCents !== dbOrder.payment.amountTotal)
-            return res.status(400).json({ error: 'Amount mismatch', chargedCents, expected: dbOrder.payment.amountTotal });
-
-        const capture = pu?.payments?.captures?.[0];
-        const captureStatus = capture?.status;
-        if (captureStatus !== 'COMPLETED') {
-            return res.status(400).json({ error: 'Not Completed', cap });
-        }
-
-        const result = await Order.updateOne(
-            {
-                _id: dbOrderId,
-                'payment.paypalOrderId': orderID
-            },
-            {
-                $set:
-                {
-                    email: payerEmail,
-                    'payment.status': 'paid',
-                    'payment.paidAt': new Date(),
-                    'payment.paypalCaptureId': captureId,
-                    'payment.amountCharged': chargedCents,
-                }
-            });
-
-        if (result.matchedCount !== 1) return res.status(400).json({ error: 'Order does not match', dbOrderId });
-
-        await deliverFiles(dbOrderId);
-        return res.json(cap);
-    } catch (e) {
-        return res.status(500).json({ error: e.message || 'Server error' });
-    }
 }
 
 module.exports.paypalReturn = async (req, res) => {
@@ -281,6 +198,87 @@ module.exports.paypalReturn = async (req, res) => {
         const order = await Order.findById(dbOrderId).lean();
         return res.render('orders/index', { order, sessionId: null });
 
+    } catch (e) {
+        return res.status(500).json({ error: e.message || 'Server error' });
+    }
+}
+
+module.exports.capturePaypalOrder = async (req, res) => {
+    try {
+        const { orderID } = req.body;
+        if (!orderID) return res.status(400).json({ error: 'Missing order ID' });
+
+        const accessToken = await getAccessToken();
+
+        const capRes = await fetch(
+            `${process.env.PAYPAL_BASE_URL}/v2/checkout/orders/${orderID}/capture`,
+            {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+        const cap = await capRes.json();
+        if (!capRes.ok) return res.status(502).json(cap);
+
+        const pu = cap.purchase_units?.[0];
+        const dbOrderId = pu?.custom_id;
+        const captureId = pu?.payments?.captures?.[0]?.id;
+        const payerEmail = cap.payer?.email_address || null;
+        const chargedCents = Math.round(Number(pu.amount.value) * 100);
+
+        if (!dbOrderId) return res.status(400).json({ error: 'Missing order ID', cap });
+
+        if (!captureId || capture?.status !== 'COMPLETED')
+            return res.status(400).json({ error: 'Capture not completed', cap });
+
+
+        const dbOrder = await Order.findOne(
+            {
+                _id: dbOrderId,
+                'payment.paypalOrderId': orderID
+            })
+        if (!dbOrder) return res.status(400).json({ error: 'Order not found' });
+
+        if (dbOrder.payment.status === 'paid') return res.json({ ok: true });
+
+        const currencyCode = pu?.amount?.currency_code;
+        if (!pu?.amount.value || !currencyCode)
+            return res.status(400).json({ error: 'Missing purchase amount', cap });
+        if (currencyCode.toLowerCase() !== dbOrder.payment.currency)
+            return res.status(400).json({ error: 'Currency mismatch', currencyCode, expected: dbOrder.payment.currency });
+        if (!captureId) return res.status(400).json({ error: 'Missing captureId', cap });
+
+        if (chargedCents !== dbOrder.payment.amountTotal)
+            return res.status(400).json({ error: 'Amount mismatch', chargedCents, expected: dbOrder.payment.amountTotal });
+
+        const capture = pu?.payments?.captures?.[0];
+        const captureStatus = capture?.status;
+        if (captureStatus !== 'COMPLETED') {
+            return res.status(400).json({ error: 'Not Completed', cap });
+        }
+        const result = await Order.updateOne(
+            {
+                _id: dbOrderId,
+                'payment.paypalOrderId': orderID
+            },
+            {
+                $set:
+                {
+                    email: payerEmail,
+                    'payment.status': 'paid',
+                    'payment.paidAt': new Date(),
+                    'payment.paypalCaptureId': captureId,
+                    'payment.amountCharged': chargedCents,
+                }
+            });
+
+        if (result.matchedCount !== 1) return res.status(400).json({ error: 'Order does not match', dbOrderId });
+
+        await deliverFiles(dbOrderId);
+        return res.json(cap);
     } catch (e) {
         return res.status(500).json({ error: e.message || 'Server error' });
     }
