@@ -13,6 +13,6 @@ router.post('/paypal/capture', checkout.capturePaypalOrder);
 router.post('/paypal/finalize', checkout.paypalFinalize);
 
 // crypto payment
-router.post('/coinbase/create', checkout.createCoinbaseCharge);
+// router.post('/coinbase/create', checkout.createCoinbaseCharge);
 
 module.exports = router;

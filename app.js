@@ -104,10 +104,10 @@ app.post(
 );
 
 // do the same thing for coinbase
-app.post('/checkout/webhook',
-    express.raw({ type: 'application/json' }),
-    checkout.coinbaseWebhook
-);
+// app.post('/checkout/webhook',
+//     express.raw({ type: 'application/json' }),
+//     checkout.coinbaseWebhook
+// );
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
