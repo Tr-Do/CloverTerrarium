@@ -3,35 +3,10 @@ const Stripe = require('stripe');
 const STRIPE_KEY = process.env.STRIPE_SECRET_KEY;
 const { deliverFiles } = require('../services/fileDelivery.js');
 const { buildCartOrder } = require('../services/cartOrder.js');
+const { buildStripeLineItems } = require('../services/buildStripeLineItems.js');
 
 if (!STRIPE_KEY) throw new Error('Missing STRIPE_SECRET key');
 const stripe = new Stripe(STRIPE_KEY);
-
-function buildStripeLineItems(orderItems) {
-    return orderItems.map(item => {
-        const unitAmount = Math.round(Number(item.price) * 100);
-        const stripeImages =
-            typeof item.image === 'string' && /^https?:\/\//i.test(item.image) ? [item.image] : [];
-
-        return {
-            quantity: 1,
-            price_data: {
-                currency: 'usd',
-                unit_amount: unitAmount,
-                product_data: {
-                    name: `${item.name} (${item.size})`,
-                    images: stripeImages,
-                    metadata: {
-                        productId: String(item.productId),
-                        variantId: String(item.variantId),
-                        size: item.size
-                    }
-                }
-            }
-        }
-    })
-}
-
 
 module.exports.createSession = async (req, res, next) => {
     try {
