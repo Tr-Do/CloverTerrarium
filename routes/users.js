@@ -1,24 +1,38 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const passport = require('passport');
-const users = require('../controllers/users');
-const { validateUser, requireGuest, requireLogin, previousPage } = require('../middleware');
+const passport = require("passport");
+const users = require("../controllers/users");
+const {
+  validateUser,
+  requireGuest,
+  requireLogin,
+  previousPage,
+} = require("../middleware");
 
-router.route('/register')
-    .get(previousPage, requireGuest, users.renderRegister)
-    .post(validateUser, users.register);
+router
+  .route("/register")
+  .get(previousPage, requireGuest, users.renderRegister)
+  .post(validateUser, users.register);
 
-router.route('/login')
-    .get(previousPage, requireGuest, users.renderLogin)
-    .post(passport.authenticate('local', { failureFlash: true, failureRedirect: '/login', keepSessionInfo: true }),
-        users.login);
+router
+  .route("/login")
+  .get(previousPage, requireGuest, users.renderLogin)
+  .post(
+    passport.authenticate("local", {
+      failureFlash: true,
+      failureRedirect: "/login",
+      keepSessionInfo: true,
+    }),
+    users.login,
+  );
 
-router.get('/logout', users.logout);
+router.get("/logout", users.logout);
 
-router.route('/update')
-    .get(previousPage, requireLogin, users.renderUpdate)
-    .post(requireLogin, users.update);
+router
+  .route("/update")
+  .get(previousPage, requireLogin, users.renderUpdate)
+  .post(requireLogin, users.update);
 
-router.get('/orderhistory', previousPage, requireLogin, users.orderHistory)
+router.get("/orderhistory", previousPage, requireLogin, users.orderHistory);
 
 module.exports = router;

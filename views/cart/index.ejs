@@ -1,6 +1,4 @@
 <% layout('layouts/boilerplate') %>
-    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-    <script src="/js/turnstile.js"></script>
     <script
         src="https://www.paypal.com/sdk/js?client-id=AVU52xTQUSe2qW3ZWh-1Q_IO7dnyYi0qdIqm2ttcNetwo1mF6me29aia4kIc5ejzSF-A76oux9kxPT2p&currency=USD&intent=capture"></script>
 
@@ -70,18 +68,14 @@
                     <div>
                         <form action="/checkout/create-session" method='POST' class="mt-5">
                             <div class="d-flex flex-column align-items-center">
-                                <div class="cf-turnstile" data-sitekey="0x4AAAAAACOFjC_zbncU7Qrj" data-theme="auto"
-                                    data-size="flexible" data-callback="onTurnstileSuccess"
-                                    data-error-callback="onTurnstileError" data-expired-callback="onTurnstileExpired">
-                                </div>
-                                <div><button class="btn btn-primary mt-4" id="submit-btn" disabled>Check out with
+
+                                <div><button class="btn btn-primary mt-4" id="submit-btn">Check out with
                                         cards/Cashapp</button></div>
-                                <div><button id="crypto" class="btn btn-primary my-3" disabled>Check out with
+                                <div><button id="crypto" class="btn btn-primary my-3" >Check out with
                                         Cryptocurrency</button></div>
                                 <div>
                                     <button id="paypal-redirect" class="btn p-0 border-0 bg-transparent mb-3"
-                                        data-subtotal="<%=subtotal.toFixed(2)%>" data-db-order-id="<%=cart.dbOrderId%>"
-                                        disabled><img id="paypal-button"
+                                        data-subtotal="<%=subtotal.toFixed(2)%>" data-db-order-id="<%=cart.dbOrderId%>"><img id="paypal-button"
                                             src="https://www.paypalobjects.com/webstatic/en_US/i/buttons/checkout-logo-large.png"
                                             alt="Pay with PayPal" />
                                     </button>

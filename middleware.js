@@ -1,111 +1,114 @@
-const Review = require('./models/review');
-const { productSchema, reviewSchema, userSchema } = require('./schemas.js');
-const { AppError } = require('./utils/AppError');
+const Review = require("./models/review");
+const { productSchema, reviewSchema, userSchema } = require("./schemas.js");
+const { AppError } = require("./utils/AppError");
 
 // Busboy of multer parses request stream once, file splitting is needed
 module.exports.splitFiles = (req, res, next) => {
-    req.imageFiles = req.files?.image || [];
+  req.imageFiles = req.files?.image || [];
 
-    req.designFilesByField = {
-        designFileStandard: req.files?.designFileStandard || [],
-        designFileS: req.files?.designFileS || [],
-        designFileM: req.files?.designFileM || [],
-        designFileL: req.files?.designFileL || [],
-        designFileXL: req.files?.designFileXL || [],
-    }
-    next();
+  req.designFilesByField = {
+    designFileStandard: req.files?.designFileStandard || [],
+    designFileS: req.files?.designFileS || [],
+    designFileM: req.files?.designFileM || [],
+    designFileL: req.files?.designFileL || [],
+    designFileXL: req.files?.designFileXL || [],
+  };
+  next();
 };
 
 module.exports.validateProduct = (req, res, next) => {
-    const { error } = productSchema.validate(req.body);
-    if (error) {
-        const msg = error.details.map(e => e.message).join(',');
-        throw new AppError(msg, 400);
-    } else next();
+  const { error } = productSchema.validate(req.body);
+  if (error) {
+    const msg = error.details.map((e) => e.message).join(",");
+    throw new AppError(msg, 400);
+  } else next();
 };
 
 module.exports.validateReview = (req, res, next) => {
-    const { error } = reviewSchema.validate(req.body);
-    if (error) {
-        const msg = error.details.map(e => e.message).join(',');
-        throw new AppError(msg, 400);
-    } else next();
+  const { error } = reviewSchema.validate(req.body);
+  if (error) {
+    const msg = error.details.map((e) => e.message).join(",");
+    throw new AppError(msg, 400);
+  } else next();
 };
 
 module.exports.validateUser = (req, res, next) => {
-    const { error } = userSchema.validate(req.body);
-    if (error) {
-        const msg = error.details.map(e => e.message).join(',');
-        throw new AppError(msg, 400);
-    } else next();
+  const { error } = userSchema.validate(req.body);
+  if (error) {
+    const msg = error.details.map((e) => e.message).join(",");
+    throw new AppError(msg, 400);
+  } else next();
 };
 
 module.exports.requireGuest = (req, res, next) => {
-    if (req.isAuthenticated()) {
-        req.flash('error', 'You already logged in');
-        return res.redirect(req.session.returnTo || req.headers.referer || '/');
-    }
-
-    next();
+  if (req.isAuthenticated()) {
+    req.flash("error", "You already logged in");
+    return res.redirect(req.session.returnTo || req.headers.referer || "/");
+  }
+  next();
 };
 
 module.exports.requireLogin = (req, res, next) => {
-    if (!req.isAuthenticated()) {
-        req.session.returnTo = req.originalUrl;
+  if (!req.isAuthenticated()) {
+    req.session.returnTo = req.originalUrl;
 
-        req.flash('error', 'You must log in first');
-        return res.redirect('/login');
-    }
-
-    next();
+    req.flash("error", "You must log in first");
+    return res.redirect("/login");
+  }
+  next();
 };
 
 module.exports.isAuthorOrAdmin = async (req, res, next) => {
-    const { id, reviewId } = req.params;
+  const { id, reviewId } = req.params;
 
-    const review = await Review.findById(reviewId);
-    if (!review) {
-        req.flash('error', 'Review not found');
-        return res.redirect(`/products/${id}`);
-    }
+  const review = await Review.findById(reviewId);
+  if (!review) {
+    req.flash("error", "Review not found");
+    return res.redirect(`/products/${id}`);
+  }
 
-    if ((review.author && review.author.equals(req.user._id)) || req.user.role === 'admin') return next();
+  if (
+    (review.author && review.author.equals(req.user._id)) ||
+    req.user.role === "admin"
+  )
+    return next();
 
-    req.flash('error', 'Unauthorized');
-    return res.redirect(`/products/${id}`)
+  req.flash("error", "Unauthorized");
+  return res.redirect(`/products/${id}`);
 };
 
 module.exports.isAdmin = (req, res, next) => {
-    if (!req.isAuthenticated()) return res.status(401).send('Unauthenticated');
+  if (!req.isAuthenticated()) return res.status(401).send("Unauthenticated");
 
-    if (req.isAuthenticated() && req.user.role !== 'admin') return res.status(403).send('Forbidden');
+  if (req.isAuthenticated() && req.user.role !== "admin")
+    return res.status(403).send("Forbidden");
 
-    next();
+  next();
 };
 
 module.exports.previousPage = (req, res, next) => {
-    const rt = req.query.returnTo;
-    if (rt) req.session.returnTo = rt;
+  const rt = req.query.returnTo;
+  if (rt) req.session.returnTo = rt;
 
-    next();
+  next();
 };
 
 module.exports.setLocals = (req, res, next) => {
-    res.locals.currentUser = req.user;
-    res.locals.success = req.flash('success');
-    res.locals.error = req.flash('error');
+  res.locals.currentUser = req.user;
+  res.locals.success = req.flash("success");
+  res.locals.error = req.flash("error");
 
-    const cart = req.session.cart;
-    const cartCount = cart && Array.isArray(cart.items) ? cart.items.length : 0;
-    res.locals.cartCount = cartCount;
-    next();
-}
+  const cart = req.session.cart;
+  const cartCount = cart && Array.isArray(cart.items) ? cart.items.length : 0;
+  res.locals.cartCount = cartCount;
+  next();
+};
 
 module.exports.globalErrorHandler = (err, req, res, next) => {
-    const { status = 500, message = 'Something went wrong' } = err;
-    if (req.originalUrl.startsWith('/checkout/webhook')) {
-        console.error('WEBHOOK ERROR', err);
-        return res.status(200).json({ received: true });
-    }
-    res.status(status).render('error', { err });
-}
+  const { status = 500, message = "Something went wrong" } = err;
+  if (req.originalUrl.startsWith("/checkout/webhook")) {
+    console.error("WEBHOOK ERROR", err);
+    return res.status(200).json({ received: true });
+  }
+  res.status(status).render("error", { err });
+};

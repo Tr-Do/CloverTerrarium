@@ -19,3 +19,12 @@ function onTurnstileExpired() {
   console.warn("Turnstile token expired");
   toggleButton(false);
 }
+
+window.addEventListener("pageshow", () => {
+  const widgets = document.querySelectorAll(".cf-turnstile ifram");
+  if (widgets.length > 1) {
+    widgets.forEach((w, i) => {
+      if (i > 0) w.closest(".cf-turnstile").remove();
+    });
+  }
+});

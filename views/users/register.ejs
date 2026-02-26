@@ -1,41 +1,60 @@
 <% layout('layouts/boilerplate') %>
-    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-    <script src="/js/turnstile.js"></script>
-
-    <div class="row">
-        <div class="d-flex justify-content-center align-items-center" id="registerForm">
-            <div class="card shadow" id="registerCard">
-                <div class="card-body">
-                    <div class="d-flex justify-content-center">
-                        <h5 class="card-title">Register</h5>
-                    </div>
-                    <form action="/register" method="POST" class="validated-form" novalidate>
-                        <div class="mb-3">
-                            <label class="form-label" for="username">Username</label>
-                            <input class="form-control" type="text" id="username" name="user[username]" minlength="4"
-                                required autofocus>
-                            <div class="invalid-feedback">Username must be at least 4 characters</div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label" for="password">Password</label>
-                            <div class="input-group">
-                                <input class="form-control" type="password" minlength="6" maxlength="20" id="password"
-                                    name="user[password]" required>
-                                <span class="input-group-text"><i class="bi bi-eye-slash-fill" id="eyeIcon"></i></span>
-                                <div class="invalid-feedback" id="passwordHelp">Password must be 6-20
-                                    characters
-                                </div>
-                            </div>
-                        </div>
-                        <div class="turnstile-wrapper">
-                            <div class="cf-turnstile" data-sitekey="0x4AAAAAACOFjC_zbncU7Qrj" data-theme="auto"
-                                data-size="flexible" data-callback="onTurnstileSuccess"
-                                data-error-callback="onTurnstileError" data-expired-callback="onTurnstileExpired">
-                            </div>
-                        </div>
-                        <button class="btn btn-success w-100 mt-3" id="submit-btn" disabled>Register</button>
-                    </form>
-                </div>
-            </div>
+<div class="row">
+  <div
+    class="d-flex justify-content-center align-items-center"
+    id="registerForm"
+  >
+    <div class="card shadow" id="registerCard">
+      <div class="card-body">
+        <div class="d-flex justify-content-center">
+          <h5 class="card-title">Register</h5>
         </div>
+        <form
+          action="/register"
+          method="POST"
+          class="validated-form"
+          novalidate
+        >
+          <div class="mb-3">
+            <label class="form-label" for="username">Username</label>
+            <input
+              class="form-control"
+              type="text"
+              id="username"
+              name="user[username]"
+              minlength="4"
+              required
+              autofocus
+            />
+            <div class="invalid-feedback">
+              Username must be at least 4 characters
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="password">Password</label>
+            <div class="input-group">
+              <input
+                class="form-control"
+                type="password"
+                minlength="6"
+                maxlength="20"
+                id="password"
+                name="user[password]"
+                required
+              />
+              <span class="input-group-text"
+                ><i class="bi bi-eye-slash-fill" id="eyeIcon"></i
+              ></span>
+              <div class="invalid-feedback" id="passwordHelp">
+                Password must be 6-20 characters
+              </div>
+            </div>
+          </div>
+          <button class="btn btn-success w-100 mt-3" id="submit-btn">
+            Register
+          </button>
+        </form>
+      </div>
     </div>
+  </div>
+</div>
