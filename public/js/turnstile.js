@@ -1,22 +1,21 @@
 const ids = ["submit-btn", "paypal-redirect", "crypto"];
 
+function toggleButton(status) {
+  ids.forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = !status;
+  });
+}
+
 function onTurnstileSuccess(token) {
   console.log("Turnstile success:", token);
-  ids.forEach((id) => {
-    const el = document.getElementById(id);
-    if (el) el.disabled = false;
-  });
+  toggleButton(true);
 }
 function onTurnstileError(errorCode) {
-  ids.forEach((id) => {
-    const el = document.getElementById(id);
-    if (el) el.disabled = true;
-  });
+  toggleButton(false);
 }
+
 function onTurnstileExpired() {
   console.warn("Turnstile token expired");
-  ids.forEach((id) => {
-    const el = document.getElementById(id);
-    if (el) el.disabled = true;
-  });
+  toggleButton(false);
 }
