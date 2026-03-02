@@ -71,17 +71,16 @@
 
                                 <div><button class="btn btn-primary mt-4" id="submit-btn">Check out with
                                         cards/Cashapp</button></div>
-                                <div><button id="crypto" type='button' class="btn btn-primary my-3" >Check out with
-                                        Cryptocurrency</button></div>
-                                <div>        
-                                </div>
                             </div>
                         </form>
-                        <button id="paypal-redirect" class="btn p-0 border-0 bg-transparent mb-3"
+                        <div><button id="crypto" type='button' class="btn btn-primary my-3" >Check out with
+                                        Coinbase/Metamask</button></div>
+                        <div><button id="paypal-redirect" class="btn p-0 border-0 bg-transparent mb-3 ms-4"
                                         data-subtotal="<%=subtotal.toFixed(2)%>" data-db-order-id="<%=cart.dbOrderId%>"><img id="paypal-button"
                                             src="https://www.paypalobjects.com/webstatic/en_US/i/buttons/checkout-logo-large.png"
                                             alt="Pay with PayPal" />
                                     </button>
+                                    </div>
                     </div>
                 </div>
             </div>
