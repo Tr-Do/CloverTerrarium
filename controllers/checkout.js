@@ -5,6 +5,7 @@ const { deliverFiles } = require("../services/fileDelivery.js");
 const { buildCartOrder } = require("../services/cartOrder.js");
 const { buildStripeLineItems } = require("../services/buildStripeLineItems.js");
 const crypto = require("crypto");
+const { getAccessToken } = require("../services/getAccessToken.js");
 
 const stripe = new Stripe(STRIPE_KEY);
 
@@ -445,7 +446,13 @@ module.exports.createCoinbaseCharge = async (req, res) => {
     if (!process.env.COINBASE_COMMERCE_API_KEY) {
       return res.status(500).json({ err: "Missing COINBASE API KEY" });
     }
-    const { orderItems, amountTotalCents } = await buildCartOrder(req);
+    const { orderItems, amountTotalCents, currency } =
+      await buildCartOrder(req);
+
+    // currency for db
+    const localCurrency = (currency || "usd").toLowerCase();
+    // currency for coinbase
+    const currencyUpper = localCurrency.toUpperCase();
 
     const order = await Order.create({
       ip: req.ip,
@@ -454,24 +461,26 @@ module.exports.createCoinbaseCharge = async (req, res) => {
       payment: {
         provider: "coinbase",
         status: "pending",
-        currency,
+        currency: localCurrency,
         amountTotal: amountTotalCents,
         coinbaseChargeId: null,
       },
+      email: null,
     });
+
     const body = {
-      name: "Digital design oder",
+      name: "Digital design order",
       description: `Order ${order._id}`,
       pricing_type: "fixed_price",
       local_price: {
         amount: (amountTotalCents / 100).toFixed(2),
-        currency,
+        currency: currencyUpper,
       },
       metadata: {
         dbOrderId: String(order._id),
       },
       redirect_url: `${process.env.BASE_URL}/orders/${order._id}`,
-      cancel_url: `${process.env.BASE.URL}/cart`,
+      cancel_url: `${process.env.BASE_URL}/cart`,
     };
     const resp = await fetch("https://api.commerce.coinbase.com/charges", {
       method: "POST",
@@ -495,7 +504,7 @@ module.exports.createCoinbaseCharge = async (req, res) => {
           },
         },
       );
-      return res.json(502)({
+      return res.status(502).json({
         error: "Coinbase charge create failed",
         details: json,
       });
@@ -517,7 +526,7 @@ module.exports.createCoinbaseCharge = async (req, res) => {
     );
     return res.json({
       orderId: String(order._id),
-      hosteUrl: charge.hosted_url,
+      hostedUrl: charge.hosted_url,
     });
   } catch (err) {
     return res.status(500).json({ error: err?.message || "Server error" });
@@ -528,7 +537,7 @@ function timingSafeEqualHex(aHex, bHex) {
   try {
     const a = Buffer.from(aHex, "hex");
     const b = Buffer.from(bHex, "hex");
-    return a.length === b.length && crypto.timeSafeEqual(a, b);
+    return a.length === b.length && crypto.timingSafeEqual(a, b);
   } catch {
     return false;
   }
@@ -539,9 +548,54 @@ function verifyCoinbaseSignature(rawBodyBuffer, signatureHex, secret) {
   if (!signatureHex || !secret) return false;
 
   const computedHex = crypto
-    .createdHmac("sha256", secret)
+    .createHmac("sha256", secret)
     .update(rawBodyBuffer)
     .digest("hex");
 
   return timingSafeEqualHex(computedHex, signatureHex);
 }
+
+module.exports.coinbaseWebhook = async (req, res) => {
+  try {
+    const signature = req.header("X-CC-Webhook-Signature");
+    const secret = process.env.COINBASE_COMMERCE_WEBHOOK_SECRET;
+
+    const rawBody = req.rawBody || req.body;
+
+    if (!verifyCoinbaseSignature(rawBody, signature, secret)) {
+      return res.status(400).send("Invalid signature");
+    }
+    const payload = JSON.parse(rawBody.toString("utf8"));
+    const eventType = payload?.event?.type;
+
+    if (eventType !== "charge:confirmed") return res.json({ received: true });
+
+    const data = payload?.event?.data;
+    const coinbaseChargeId = data?.id;
+    const dbOrderId = data?.metadata?.dbOrderId;
+
+    if (!coinbaseChargeId || !dbOrderId) {
+      return res
+        .status(400)
+        .json({ error: "Missing coinbase chargeid/dborderid" });
+    }
+    const order = await Order.findOne({
+      _id: dbOrderId,
+      "payment.provider": "coinbase",
+      "payment.coinbaseChargeId": coinbaseChargeId,
+    });
+    if (!order) return res.status(400).json({ error: "Order not found" });
+    if (order.payment.status === "paid") return res.json({ received: true });
+
+    order.payment.status = "paid";
+    order.payment.paidAt = new Date();
+    await order.save();
+
+    await deliverFiles(order._id);
+    return res.json({ received: true });
+  } catch (err) {
+    return res
+      .status(500)
+      .json({ received: false, error: err.message || "Webhook error" });
+  }
+};

@@ -1,4 +1,5 @@
-document.getElementById("crypto")?.addEventListener("click", async () => {
+document.getElementById("crypto")?.addEventListener("click", async (e) => {
+  e.preventDefault();
   const btn = document.getElementById("crypto");
   btn.disabled = true;
   btn.innerText = "reDirecting...";
@@ -11,7 +12,7 @@ document.getElementById("crypto")?.addEventListener("click", async () => {
       },
     });
     const data = await res.json();
-    if (!res.ok || data.hostedUrl) {
+    if (!res.ok || !data.hostedUrl) {
       throw new Error(data.error || "Failed to create crypto checkout");
     }
     window.location.href = data.hostedUrl;
