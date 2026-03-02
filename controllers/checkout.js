@@ -4,8 +4,8 @@ const STRIPE_KEY = process.env.STRIPE_SECRET_KEY;
 const { deliverFiles } = require('../services/fileDelivery.js');
 const { buildCartOrder } = require('../services/cartOrder.js');
 const { buildStripeLineItems } = require('../services/buildStripeLineItems.js');
+const crypto = require('crypto');
 
-if (!STRIPE_KEY) throw new Error('Missing STRIPE_SECRET key');
 const stripe = new Stripe(STRIPE_KEY);
 
 module.exports.createSession = async (req, res, next) => {
@@ -52,43 +52,6 @@ module.exports.createSession = async (req, res, next) => {
 
         req.session.lastOrderId = order._id;
         return res.redirect(303, session.url);
-    } catch (err) {
-        return next(err);
-    }
-}
-
-module.exports.paymentConfirmation = async (req, res, next) => {
-    try {
-        const sessionId = req.query.session_id;
-
-        if (!sessionId) {
-            req.flash('error', 'Something went wrong');
-            // display flash on order confimation page
-            res.locals.error = req.flash('error');
-            return res.redirect('/products');
-        }
-
-        const order = await Order.findOne({ 'payment.stripeSessionId': sessionId });
-
-        if (!order) {
-            req.flash('error', 'Order not found');
-            res.locals.error = req.flash('error');
-            return res.redirect('/cart');
-        }
-        if (order?.payment?.status === 'paid') {
-            req.flash('success', 'Payment completed.');
-            res.locals.success = req.flash('success');
-
-            // reset cart count after payment confirmation
-            req.session.cart = { items: [] };
-            delete req.session.lastOrderId;
-            res.locals.cartCount = 0;
-
-        } else {
-            req.flash('info', 'Payment processing...');
-        }
-
-        return res.render('orders/index', { order, sessionId });
     } catch (err) {
         return next(err);
     }
@@ -147,6 +110,43 @@ module.exports.webhook = async (req, res) => {
         return res.json({ received: true });
     } catch (err) {
         return res.status(500).json({ received: false });
+    }
+}
+
+module.exports.paymentConfirmation = async (req, res, next) => {
+    try {
+        const sessionId = req.query.session_id;
+
+        if (!sessionId) {
+            req.flash('error', 'Something went wrong');
+            // display flash on order confimation page
+            res.locals.error = req.flash('error');
+            return res.redirect('/products');
+        }
+
+        const order = await Order.findOne({ 'payment.stripeSessionId': sessionId });
+
+        if (!order) {
+            req.flash('error', 'Order not found');
+            res.locals.error = req.flash('error');
+            return res.redirect('/cart');
+        }
+        if (order?.payment?.status === 'paid') {
+            req.flash('success', 'Payment completed.');
+            res.locals.success = req.flash('success');
+
+            // reset cart count after payment confirmation
+            req.session.cart = { items: [] };
+            delete req.session.lastOrderId;
+            res.locals.cartCount = 0;
+
+        } else {
+            req.flash('info', 'Payment processing...');
+        }
+
+        return res.render('orders/index', { order, sessionId });
+    } catch (err) {
+        return next(err);
     }
 }
 
@@ -402,4 +402,67 @@ module.exports.paypalFinalize = async (req, res) => {
 
     req.session.cart = { items: [] };
     return res.json({ ok: true })
+}
+
+module.exports.createCoinbaseCharge = async(req, res) => {
+    try {
+        if (!process.env.COINBASE_COMMERCE_API_KEY) {
+            return res.status(500).json({err: 'Missing COINBASE API KEY'})
+        }
+        const {orderItems, amountTotalCents} = await buildCartOrder(req);
+
+        const order = await Order.create({
+            ip:req.ip,
+            user: req.user?._id || null,
+            items: orderItems,
+            payment:{
+                provider: 'coinbase',
+                status: 'pending',
+                currency,
+                amountTotal: amountTotalCents,
+                coinbaseChargeId: null
+            }
+        });
+        const body = {
+            name = 'Digital design oder',
+            description: `Order ${order._id}`,
+            pricing_type: 'fixed_price',
+            local_price: {
+                amount: (amountTotalCents/100).toFixed(2),
+                currency
+            },
+            metadata: {
+                dbOrderId:String(order._id)
+            },
+            redirect_url: `${process.env.BASE_URL}/orders/${order._id}`,
+            cancel_url: `${process.env.BASE.URL}/cart`
+        };
+        const resp = await fetch('https://api.commerce.coinbase.com/charges', {
+            method: 'POST', 
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CC-Api-Key': process.env.COINBASE_COMMERCE_API_KEY,
+                'X-CC-Version':'2018-03-22'
+            },
+            body: JSON.stringify(body)
+        });
+        const json = await resp.json().catch(()=> ({}));
+
+        if (!resp.ok) {
+            await Order.updateOne(
+                {_id: order._id},
+                {$set: {
+                    'payment.status':'failed', 
+                    coinbaseError:json}};
+                );
+                return res.json(502)({error: 'Coinbase charge create failed', details:json});
+            
+                const charge = json?.data;
+                if (!charge?.hosted_url)
+
+        }
+
+
+    }
 }
